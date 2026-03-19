@@ -174,9 +174,9 @@
                 <option value="Shell">Shell</option><option value="Caltex">Caltex</option><option value="Esso">Esso</option>
                 <option value="Susco">Susco</option><option value="Cosmo">Cosmo</option><option value="Other">อื่นๆ</option>
             </select>
-            <label>อำเภอ</label><select id="add-district"></select>
-            <label>ตำบล / สถานที่ใกล้เคียง</label>
-            <input type="text" id="add-subdistrict" placeholder="เช่น ต.เวียง">
+            <label>อำเภอ</label><select id="add-district" onchange="updateAddSubdistrict()"></select>
+            <label>ตำบล</label>
+            <select id="add-subdistrict"><option value="">-- เลือกตำบล --</option></select>
             <label>ลิงก์ Google Maps (ถ้ามี)</label>
             <input type="url" id="add-maplink" placeholder="https://maps.google.com/...">
             <label>จำนวนตู้จ่าย</label>
@@ -232,6 +232,7 @@
         </div>
     </div>
 
+<script src="/subdistricts.js"></script>
 <script>
 const SUPABASE_URL = 'https://tekcyzixbsuankaiuncs.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_7VRgnntgw8VyGVgC8mTLrA_rnaE2vm0';
@@ -558,9 +559,16 @@ async function submitReport() {
 function openAddStationModal() {
     if (!currentUser) { openModal('auth-modal'); return; }
     document.getElementById('add-district').innerHTML = districts.map(d => `<option value="${d.id}">${d.name}</option>`).join('');
-    document.getElementById('add-name').value = ''; document.getElementById('add-subdistrict').value = '';
+    updateAddSubdistrict();
+    document.getElementById('add-name').value = '';
     document.getElementById('add-maplink').value = ''; document.getElementById('add-pumps').value = '4';
     openModal('add-station-modal');
+}
+function updateAddSubdistrict() {
+    const distId = +document.getElementById('add-district').value;
+    const subs = SUBDISTRICTS[distId] || [];
+    document.getElementById('add-subdistrict').innerHTML = '<option value="">-- เลือกตำบล --</option>' +
+        subs.map(s => `<option value="${s}">${s}</option>`).join('');
 }
 async function submitAddStation() {
     const name = document.getElementById('add-name').value.trim();
