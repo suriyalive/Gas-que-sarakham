@@ -176,11 +176,11 @@
     <div class="container" id="station-list"></div>
 
     <div id="fab-menu" style="position:fixed;bottom:20px;right:20px;display:none;flex-direction:column;gap:10px;z-index:50;">
-        <button class="fab" onclick="triggerFileUpload()" title="นำเข้าไฟล์ (CSV/PDF)" style="position:static;width:44px;height:44px;font-size:1rem;background:#8b5cf6;box-shadow:0 4px 16px rgba(139,92,246,0.3);">📄</button>
+        <button class="fab" onclick="triggerFileUpload()" title="นำเข้า CSV" style="position:static;width:44px;height:44px;font-size:1rem;background:#8b5cf6;box-shadow:0 4px 16px rgba(139,92,246,0.3);">📄</button>
         <button class="fab" onclick="openAddStationModal()" title="เพิ่มปั๊ม" style="position:static;width:44px;height:44px;font-size:1rem;background:#3b82f6;box-shadow:0 4px 16px rgba(59,130,246,0.3);">🏪</button>
         <button class="fab" onclick="openReportModal()" title="รายงาน" style="position:static;">+</button>
     </div>
-    <input type="file" id="file-input" accept=".pdf,.csv,.tsv,.txt" style="display:none" onchange="uploadFile(this)">
+    <input type="file" id="file-input" accept=".csv,.tsv,.txt" style="display:none" onchange="uploadFile(this)">
 
     <!-- Add Station Modal -->
     <div class="modal-overlay" id="add-station-modal" onclick="closeOverlay(event,'add-station-modal')">
@@ -675,17 +675,9 @@ async function uploadFile(input) {
 
     try {
         const formData = new FormData();
-        let endpoint;
+        formData.append('file', file);
 
-        if (ext === 'pdf') {
-            formData.append('pdf', file);
-            endpoint = '/api/import-pdf';
-        } else {
-            formData.append('file', file);
-            endpoint = '/api/import-csv';
-        }
-
-        const res = await fetch(endpoint, { method: 'POST', body: formData });
+        const res = await fetch('/api/import-csv', { method: 'POST', body: formData });
         const data = await res.json();
 
         hideFullLoading();
