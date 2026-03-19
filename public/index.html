@@ -620,6 +620,30 @@ async function submitAddStation() {
     const districtId = +document.getElementById('add-district').value;
     const subdistrict = document.getElementById('add-subdistrict').value.trim();
     const maplink = document.getElementById('add-maplink').value.trim();
+
+    // เช็คซ้ำ: ชื่อเหมือน + อำเภอ + ตำบลเดียวกัน
+    const dup = allStations.find(s =>
+        s.name.toLowerCase() === name.toLowerCase() &&
+        s.district_id === districtId &&
+        (s.subdistrict || '').toLowerCase() === (subdistrict || '').toLowerCase()
+    );
+    if (dup) {
+        alert('ปั๊มนี้มีอยู่แล้ว: "' + dup.name + '" (' + dup.districtName + ')');
+        btn.disabled = false;
+        return;
+    }
+
+    // เช็คชื่อคล้าย + อำเภอเดียวกัน → เตือน
+    const similar = allStations.find(s =>
+        s.district_id === districtId &&
+        (s.name.toLowerCase().includes(name.substring(0, 15).toLowerCase()) ||
+         name.toLowerCase().includes(s.name.substring(0, 15).toLowerCase()))
+    );
+    if (similar && !confirm('พบปั๊มชื่อคล้ายกันในอำเภอเดียวกัน:\n"' + similar.name + '"\n\nต้องการเพิ่มอีกหรือไม่?')) {
+        btn.disabled = false;
+        return;
+    }
+
     let lat = null, lng = null;
     if (maplink) { const m = maplink.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/); if (m) { lat = +m[1]; lng = +m[2]; } }
     try {
