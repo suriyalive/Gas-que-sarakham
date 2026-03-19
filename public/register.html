@@ -3,32 +3,43 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>สมัครสมาชิก — สถานะน้ำมัน จ.เชียงราย</title>
+    <title>ลงทะเบียน — สถานะน้ำมันคงเหลือ จ.เชียงราย</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0f172a; color: #e2e8f0; min-height: 100vh; display: flex; align-items: center; justify-content: center; }
-        .card { background: #1e293b; border-radius: 16px; padding: 32px; width: 100%; max-width: 400px; margin: 20px; }
-        .card h1 { font-size: 1.3rem; color: #f59e0b; margin-bottom: 4px; }
-        .card p { font-size: 0.8rem; color: #64748b; margin-bottom: 20px; }
-        label { display: block; font-size: 0.8rem; color: #94a3b8; margin: 12px 0 4px; }
-        input { width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid #475569; background: #0f172a; color: #e2e8f0; font-size: 0.9rem; }
-        input:focus { outline: none; border-color: #f59e0b; }
-        .btn { width: 100%; padding: 12px; border-radius: 8px; border: none; font-size: 0.9rem; font-weight: 600; cursor: pointer; margin-top: 16px; }
-        .btn-submit { background: #f59e0b; color: #0f172a; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f1f5f9; color: #1e293b; min-height: 100vh; display: flex; align-items: center; justify-content: center; }
+        .card { background: #fff; border-radius: 16px; padding: 32px; width: 100%; max-width: 420px; margin: 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); border-top: 4px solid #e74c3c; }
+        .card-header { display: flex; align-items: center; gap: 14px; margin-bottom: 20px; }
+        .card-header img { width: 50px; height: 50px; }
+        .card-header h1 { font-size: 1.15rem; color: #c0392b; line-height: 1.3; }
+        .card-header p { font-size: 0.8rem; color: #94a3b8; margin-top: 2px; }
+        label { display: block; font-size: 0.9rem; color: #475569; margin: 14px 0 4px; font-weight: 500; }
+        input { width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid #e2e8f0; background: #fff; color: #1e293b; font-size: 0.95rem; }
+        input:focus { outline: none; border-color: #e74c3c; box-shadow: 0 0 0 3px rgba(231,76,60,0.1); }
+        .btn { width: 100%; padding: 12px; border-radius: 8px; border: none; font-size: 0.95rem; font-weight: 600; cursor: pointer; margin-top: 16px; }
+        .btn-submit { background: #e74c3c; color: #fff; }
+        .btn-submit:hover { background: #c0392b; }
         .btn-submit:disabled { opacity: 0.5; cursor: not-allowed; }
-        .btn-back { background: #334155; color: #94a3b8; margin-top: 8px; }
-        .msg { margin-top: 12px; padding: 10px; border-radius: 8px; font-size: 0.8rem; display: none; }
-        .msg.error { display: block; background: #ef444420; color: #ef4444; }
-        .msg.success { display: block; background: #22c55e20; color: #22c55e; }
+        .btn-back { background: #f1f5f9; color: #64748b; margin-top: 8px; }
+        .btn-back:hover { background: #e2e8f0; }
+        .msg { margin-top: 12px; padding: 12px; border-radius: 8px; font-size: 0.85rem; display: none; }
+        .msg.error { display: block; background: #fef2f2; color: #dc2626; border: 1px solid #fee2e2; }
+        .msg.success { display: block; background: #f0fdf4; color: #16a34a; border: 1px solid #dcfce7; }
+        .msg.info { display: block; background: #eff6ff; color: #2563eb; border: 1px solid #dbeafe; }
+        .note { font-size: 0.8rem; color: #94a3b8; margin-top: 16px; text-align: center; line-height: 1.5; }
     </style>
 </head>
 <body>
     <div class="card">
-        <h1>⛽ สมัครสมาชิก</h1>
-        <p>สถานะน้ำมัน จ.เชียงราย — สำหรับเจ้าหน้าที่รายงานข้อมูล</p>
+        <div class="card-header">
+            <img src="/logo.jpg" alt="logo">
+            <div>
+                <h1>ลงทะเบียนผู้รายงานข้อมูล</h1>
+                <p>สถานะน้ำมันคงเหลือ จ.เชียงราย</p>
+            </div>
+        </div>
 
-        <label>อีเมล</label>
+        <label>อีเมล (ใช้อีเมลจริงเพื่อยืนยันตัวตน)</label>
         <input type="email" id="email" placeholder="email@example.com">
 
         <label>รหัสผ่าน (อย่างน้อย 6 ตัว)</label>
@@ -39,8 +50,10 @@
 
         <div class="msg" id="msg"></div>
 
-        <button class="btn btn-submit" id="btn-submit" onclick="doSignup()">สมัครสมาชิก</button>
+        <button class="btn btn-submit" id="btn-submit" onclick="doSignup()">ลงทะเบียน</button>
         <button class="btn btn-back" onclick="location.href='/'">กลับหน้าหลัก</button>
+
+        <p class="note">หลังลงทะเบียน ระบบจะส่งอีเมลยืนยันไปยังอีเมลที่กรอก<br>กรุณากดลิงก์ในอีเมลเพื่อยืนยันก่อนเข้าสู่ระบบ</p>
     </div>
 
     <script>
@@ -52,30 +65,42 @@
             const email = document.getElementById('email').value.trim();
             const pw = document.getElementById('password').value;
             const pw2 = document.getElementById('password2').value;
-            const msg = document.getElementById('msg');
             const btn = document.getElementById('btn-submit');
 
-            msg.className = 'msg';
-            msg.style.display = 'none';
+            hideMsg();
 
             if (!email || !pw) { showMsg('กรุณากรอกอีเมลและรหัสผ่าน', 'error'); return; }
+            if (!email.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)) { showMsg('กรุณากรอกอีเมลให้ถูกต้อง', 'error'); return; }
             if (pw.length < 6) { showMsg('รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร', 'error'); return; }
             if (pw !== pw2) { showMsg('รหัสผ่านไม่ตรงกัน', 'error'); return; }
 
             btn.disabled = true;
-            btn.textContent = 'กำลังสมัคร...';
+            btn.textContent = 'กำลังลงทะเบียน...';
 
-            const { data, error } = await sb.auth.signUp({ email, password: pw });
+            const { data, error } = await sb.auth.signUp({
+                email,
+                password: pw,
+                options: {
+                    emailRedirectTo: window.location.origin + '/',
+                }
+            });
 
             if (error) {
                 showMsg(error.message, 'error');
-            } else {
-                showMsg('สมัครสำเร็จ! กำลังพาไปหน้าหลัก...', 'success');
+            } else if (data.user && !data.session) {
+                // Supabase ส่ง confirmation email
+                showMsg('ลงทะเบียนสำเร็จ! กรุณาตรวจสอบอีเมล "' + email + '" แล้วกดลิงก์ยืนยันเพื่อเปิดใช้งานบัญชี', 'info');
+                document.getElementById('email').value = '';
+                document.getElementById('password').value = '';
+                document.getElementById('password2').value = '';
+            } else if (data.session) {
+                // Auto-confirm เปิดอยู่
+                showMsg('ลงทะเบียนสำเร็จ! กำลังพาไปหน้าหลัก...', 'success');
                 setTimeout(() => location.href = '/', 2000);
             }
 
             btn.disabled = false;
-            btn.textContent = 'สมัครสมาชิก';
+            btn.textContent = 'ลงทะเบียน';
         }
 
         function showMsg(text, type) {
@@ -83,8 +108,12 @@
             msg.textContent = text;
             msg.className = 'msg ' + type;
         }
+        function hideMsg() {
+            const msg = document.getElementById('msg');
+            msg.className = 'msg';
+            msg.style.display = 'none';
+        }
 
-        // ถ้า login อยู่แล้ว redirect กลับหน้าหลัก
         sb.auth.getSession().then(({ data: { session } }) => {
             if (session) location.href = '/';
         });
