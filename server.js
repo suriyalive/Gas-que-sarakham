@@ -1,7 +1,7 @@
 const express = require('express');
 const path = require('path');
 const multer = require('multer');
-const pdfParse = require('pdf-parse');
+const XLSX = require('xlsx');
 
 const app = express();
 app.use(express.json());
@@ -582,8 +582,21 @@ app.post('/api/import-csv', upload.single('file'), async (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'กรุณาเลือกไฟล์' });
 
   try {
-    const text = req.file.buffer.toString('utf-8');
-    const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+    let lines;
+    const ext = (req.file.originalname || '').split('.').pop().toLowerCase();
+
+    if (ext === 'xlsx' || ext === 'xls') {
+      // Excel file → แปลงเป็น CSV rows
+      const workbook = XLSX.read(req.file.buffer, { type: 'buffer' });
+      const sheet = workbook.Sheets[workbook.SheetNames[0]];
+      const csv = XLSX.utils.sheet_to_csv(sheet, { FS: '\t' });
+      lines = csv.split('\n').map(l => l.trim()).filter(Boolean);
+    } else {
+      // CSV/TSV/TXT
+      const text = req.file.buffer.toString('utf-8');
+      lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+    }
+
     if (lines.length < 2) return res.json({ success: false, message: 'ไฟล์ว่างหรือข้อมูลไม่เพียงพอ' });
 
     // ตรวจ delimiter (tab หรือ comma)
