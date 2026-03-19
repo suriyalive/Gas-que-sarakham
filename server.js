@@ -231,6 +231,69 @@ function detectBrandFromText(text) {
   return 'Other';
 }
 
+// แก้อักขระภาษาไทยที่เพี้ยนจาก PDF encoding
+function cleanThaiPdf(text) {
+  return text
+    // อักขระแปลกๆ → ตัวที่ถูกต้อง
+    .replace(/บรऴษัท/g, 'บริษัท')
+    .replace(/ปफโตร/g, 'ปิโตร')
+    .replace(/ปफย/g, 'ปิย')
+    .replace(/ปफ/g, 'ปิ')
+    .replace(/เจรऴญ/g, 'เจริญ')
+    .replace(/เจรฤญ/g, 'เจริญ')
+    .replace(/คอร์ปอเรชัसน/g, 'คอร์ปอเรชั่น')
+    .replace(/คอปऩปอเรชัसน/g, 'คอร์ปอเรชั่น')
+    .replace(/คอรปอเรชั่น/g, 'คอร์ปอเรชั่น')
+    .replace(/หางหุนสวน/g, 'ห้างหุ้นส่วน')
+    .replace(/ห้างหุ้นสวน/g, 'ห้างหุ้นส่วน')
+    .replace(/หางหุ้นส่วน/g, 'ห้างหุ้นส่วน')
+    .replace(/นญา/g, 'น้ำ')
+    .replace(/นํ้า/g, 'น้ำ')
+    .replace(/นñา/g, 'น้ำ')
+    .replace(/ศรว/g, 'ศรี')
+    .replace(/ศรวราชา/g, 'ศรีราชา')
+    .replace(/เววย/g, 'เวีย')
+    .replace(/เววย/g, 'เวีย')
+    .replace(/สหกรณ([^์])/g, 'สหกรณ์$1')
+    .replace(/สหกรณ$/g, 'สหกรณ์')
+    .replace(/โอลิมปตส/g, 'โอลิมปัส')
+    .replace(/Cosno/g, 'Cosmo')
+    .replace(/เเม่/g, 'แม่')
+    .replace(/ปาแดด/g, 'ป่าแดด')
+    .replace(/ปาแงะ/g, 'ป่าแงะ')
+    .replace(/แมสาย/g, 'แม่สาย')
+    .replace(/แมสรวย/g, 'แม่สรวย')
+    .replace(/แมลาว/g, 'แม่ลาว')
+    .replace(/แมจัน/g, 'แม่จัน')
+    .replace(/แมกรณ/g, 'แม่กรณ์')
+    .replace(/แมฟาหลวง/g, 'แม่ฟ้าหลวง')
+    .replace(/เดนหา/g, 'เด่นห้า')
+    .replace(/หาแยก/g, 'ห้าแยก')
+    .replace(/พอขุน/g, 'พ่อขุน')
+    .replace(/เวียงเชียงรุง/g, 'เวียงเชียงรุ้ง')
+    .replace(/เวียงแกน/g, 'เวียงแก่น')
+    .replace(/บานดู/g, 'บ้านดู่')
+    .replace(/ทาสุด/g, 'ท่าสุด')
+    .replace(/หวยสัก/g, 'ห้วยสัก')
+    .replace(/ฝงหมิ่น/g, 'ฝั่งหมิ่น')
+    .replace(/ขางศูนย/g, 'ข้างศูนย์')
+    .replace(/การแพทยแม/g, 'การแพทย์แม่')
+    .replace(/ประตูเชียงใหม/g, 'ประตูเชียงใหม่')
+    .replace(/สาขาไมยา/g, 'สาขาไม้ยา')
+    .replace(/ออยล([^์])/g, 'ออยล์$1')
+    .replace(/ออยล$/g, 'ออยล์')
+    .replace(/สตาร([^์])/g, 'สตาร์$1')
+    .replace(/สตาร$/g, 'สตาร์')
+    .replace(/เนอรจี/g, 'เนอร์จี')
+    .replace(/เนอร์จี([0-9])/g, 'เนอร์จี$1')
+    .replace(/กรุป/g, 'กรุ๊ป')
+    .replace(/พร็อพเพอรตี้/g, 'พร็อพเพอร์ตี้')
+    .replace(/มีสตางคส/g, 'มีสตางค์ส')
+    .replace(/[=]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 function parsePdfText(text) {
   // รวมบรรทัดที่ถูกตัดกลางคัน (URL ยาว)
   const rawLines = text.split('\n');
@@ -273,13 +336,39 @@ function parsePdfText(text) {
     const brand = detectBrandFromText(restLine);
 
     // แยก fuel codes ที่ติดกัน เช่น B7G91 → B7 G91
-    const cleanLine = line.replace(/([A-Z]\d{1,2})([A-Z]\d{1,2})/gi, '$1 $2');
+    const cleanLine = line
+      .replace(/([A-Z]\d{1,2})([A-Z]\d{1,2})/gi, '$1 $2')
+      .replace(/([A-Z]\d{1,2})([A-Z]\d{1,2})/gi, '$1 $2'); // run twice
 
-    // หา fuel types ที่กล่าวถึง (G95, G91, E20, E85, B7)
+    // หา fuel types - แยก "มี" กับ "หมด"
+    // ใน PDF: column "น้ำมันที่มีจำหน่าย" อยู่ก่อน, "ชนิดน้ำมันที่หมด" อยู่หลัง
+    // fuel codes ที่อยู่ก่อน URL = "มี", fuel codes ที่อยู่หลังชุดแรก = "หมด"
     const fuel = {};
+    const urlPos = cleanLine.indexOf('https://');
+    const beforeUrl = urlPos > 0 ? cleanLine.substring(0, urlPos) : cleanLine;
+
+    // หาตำแหน่ง fuel codes ทั้งหมด
+    const fuelPositions = [];
     for (const [code, key] of Object.entries(FUEL_CODES)) {
-      if (new RegExp(code, 'i').test(cleanLine)) {
-        fuel[key] = 'available';
+      const regex = new RegExp('\\b' + code + '\\b', 'gi');
+      let match;
+      while ((match = regex.exec(beforeUrl)) !== null) {
+        fuelPositions.push({ code, key, pos: match.index });
+      }
+    }
+    // เรียงตามตำแหน่ง
+    fuelPositions.sort((a, b) => a.pos - b.pos);
+
+    if (fuelPositions.length > 0) {
+      // หา gap ใหญ่ระหว่าง fuel codes → จุดแบ่ง "มี" กับ "หมด"
+      let splitIdx = fuelPositions.length; // default: ทุกตัวเป็น "มี"
+      for (let i = 1; i < fuelPositions.length; i++) {
+        const gap = fuelPositions[i].pos - fuelPositions[i-1].pos;
+        // ถ้ามี gap > 15 chars → น่าจะเป็นจุดแบ่ง column
+        if (gap > 15) { splitIdx = i; break; }
+      }
+      for (let i = 0; i < fuelPositions.length; i++) {
+        fuel[fuelPositions[i].key] = i < splitIdx ? 'available' : 'out';
       }
     }
 
@@ -300,24 +389,8 @@ function parsePdfText(text) {
       .replace(/\s+/g, ' ')
       .trim();
 
-    // ลบอักขระแปลกๆ จาก PDF encoding
-    stationName = stationName
-      .replace(/[ฟφ]/g, 'ิ')
-      .replace(/[ว]/g, (m, i, s) => s[i-1] === 'เ' && s[i+1] === 'ย' ? 'ี' : m)
-      .replace(/ปตส/g, 'ปัส')
-      .replace(/หางหุนสวน/g, 'ห้างหุ้นส่วน')
-      .replace(/บรऴษัท/g, 'บริษัท')
-      .replace(/ปफ/g, 'ปิ')
-      .replace(/เจรऴญ/g, 'เจริญ')
-      .replace(/ปफย/g, 'ปิย')
-      .replace(/นญา/g, 'น้ำ')
-      .replace(/ศรว/g, 'ศรี')
-      .replace(/เววย/g, 'เวีย')
-      .replace(/สหกรณ([^์])/g, 'สหกรณ์$1')
-      .replace(/คอปऩ/g, 'คอร์ป')
-      .replace(/ปตท\./g, 'ปตท.')
-      .replace(/\s+/g, ' ')
-      .trim();
+    // แก้อักขระเพี้ยนจาก PDF encoding ภาษาไทย
+    stationName = cleanThaiPdf(stationName);
 
     // ตัดชื่อไม่ให้ยาวเกิน
     if (stationName.length > 100) stationName = stationName.substring(0, 100);
