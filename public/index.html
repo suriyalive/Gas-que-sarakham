@@ -638,8 +638,29 @@ function showFullLoading(text, sub) {
 }
 function hideFullLoading() { document.getElementById('loading-overlay').classList.remove('active'); }
 
-function openModal(id) { document.getElementById(id).classList.add('active'); }
-function closeModal(id) { document.getElementById(id).classList.remove('active'); }
+function openModal(id) {
+    document.getElementById(id).classList.add('active');
+    history.pushState({ modal: id }, '');
+}
+
+// กดปุ่ม Back บนมือถือ → ปิด modal แทนที่จะออกจากหน้าเว็บ
+window.addEventListener('popstate', function(e) {
+    const modals = document.querySelectorAll('.modal-overlay.active');
+    if (modals.length > 0) {
+        modals.forEach(m => m.classList.remove('active'));
+    }
+    // ถ้า price table เปิดอยู่ ปิดด้วย
+    const priceWrap = document.getElementById('price-table-wrap');
+    if (priceWrap && priceWrap.classList.contains('open')) {
+        priceWrap.classList.remove('open');
+        const btn = document.getElementById('btn-toggle-price');
+        if (btn) { btn.textContent = '📊 ดูราคา'; btn.classList.remove('open'); }
+    }
+});
+function closeModal(id) {
+    document.getElementById(id).classList.remove('active');
+    if (history.state?.modal) history.back();
+}
 function closeOverlay(e, id) { if (e.target === e.currentTarget) closeModal(id); }
 function toast(msg) {
     const t = document.createElement('div');
