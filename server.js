@@ -1,9 +1,13 @@
 const express = require('express');
 const path = require('path');
+const multer = require('multer');
+const pdfParse = require('pdf-parse');
 
 const app = express();
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
+
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
 
 // =============================================================
 // Fuel Price Scraper — ดึงราคาน้ำมันจาก motorist.co.th (ฟรี)
@@ -193,6 +197,180 @@ app.post('/api/refresh-prices', async (req, res) => {
     }
 
     res.json({ updated: stations.length, reports: rows.length, prices });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// =============================================================
+// PDF Import — อัพโหลด PDF แล้วดึงข้อมูลปั๊ม
+// =============================================================
+const DISTRICT_MAP = {
+  'เมือง': 1, 'เมืองเชียงราย': 1, 'เวียงชัย': 2, 'เชียงของ': 3,
+  'เทิง': 4, 'พาน': 5, 'ป่าแดด': 6, 'แม่จัน': 7, 'เชียงแสน': 8,
+  'แม่สาย': 9, 'เเม่สาย': 9, 'แม่สรวย': 10, 'เวียงป่าเป้า': 11,
+  'พญาเม็งราย': 12, 'เวียงแก่น': 13, 'ขุนตาล': 14, 'แม่ฟ้าหลวง': 15,
+  'แม่ลาว': 16, 'เวียงเชียงรุ้ง': 17, 'ดอยหลวง': 18,
+};
+
+const BRAND_PATTERNS = [
+  [/PTT|ปตท|ป\.ต\.ท/i, 'PTT'],
+  [/\bPT\b|พีที|ปิโตรเลียมไทย/i, 'PT'],
+  [/Bangchak|บางจาก|สหกรณ์/i, 'Bangchak'],
+  [/Shell|เชลล์/i, 'Shell'],
+  [/Caltex|คาลเท็กซ์/i, 'Caltex'],
+  [/Esso|เอสโซ่/i, 'Esso'],
+  [/Susco|ซัสโก้/i, 'Susco'],
+  [/Cosmo|คอสโม/i, 'Cosmo'],
+];
+
+function detectBrandFromText(text) {
+  for (const [pattern, brand] of BRAND_PATTERNS) {
+    if (pattern.test(text)) return brand;
+  }
+  return 'Other';
+}
+
+function parsePdfText(text) {
+  const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+  const results = [];
+  let currentDistrict = null;
+
+  for (const line of lines) {
+    // ตรวจหาอำเภอ
+    for (const [name, id] of Object.entries(DISTRICT_MAP)) {
+      if (line.includes(name) && (line.includes('อำเภอ') || line.includes('อ.') || Object.keys(DISTRICT_MAP).some(d => line.startsWith(d)))) {
+        currentDistrict = id;
+        break;
+      }
+    }
+
+    // ตรวจหาชื่อปั๊ม + สถานะน้ำมัน
+    const hasStatus = /มีขาย|หมด|ไม่มี|เหลือน้อย/.test(line);
+    const hasBrand = BRAND_PATTERNS.some(([p]) => p.test(line));
+
+    if (hasBrand || hasStatus) {
+      const brand = detectBrandFromText(line);
+
+      // ดึงสถานะน้ำมันแต่ละชนิด
+      const fuel = {};
+      const fuelKeys = ['gasohol_95', 'gasohol_91', 'gasohol_e20', 'gasohol_e85', 'diesel_b7'];
+
+      // นับคำว่า "มีขาย" ในบรรทัด
+      const availCount = (line.match(/มีขาย/g) || []).length;
+      const outCount = (line.match(/หมด/g) || []).length;
+
+      // ถ้ามีข้อมูลสถานะ
+      if (availCount > 0 || outCount > 0) {
+        // ลองจับตำแหน่งของแต่ละสถานะ
+        let idx = 0;
+        for (const key of fuelKeys) {
+          if (idx < availCount) {
+            fuel[key] = 'available';
+          }
+          idx++;
+        }
+      }
+
+      // ดึง district จากบรรทัด
+      let distId = currentDistrict;
+      for (const [name, id] of Object.entries(DISTRICT_MAP)) {
+        if (line.includes(name)) { distId = id; break; }
+      }
+
+      // ดึงชื่อปั๊ม
+      let stationName = line
+        .replace(/มีขาย|หมด|ไม่มี|เหลือน้อย/g, '')
+        .replace(/\d{1,2}\/\d{1,2}\/\d{4}/g, '')
+        .replace(/https?:\/\/\S+/g, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+
+      if (stationName.length > 5 && distId) {
+        results.push({
+          name: stationName.substring(0, 100),
+          brand,
+          district_id: distId,
+          fuel,
+        });
+      }
+    }
+  }
+
+  return results;
+}
+
+app.post('/api/import-pdf', upload.single('pdf'), async (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'กรุณาเลือกไฟล์ PDF' });
+
+  try {
+    const data = await pdfParse(req.file.buffer);
+    const parsed = parsePdfText(data.text);
+
+    if (!parsed.length) {
+      return res.json({ success: false, message: 'ไม่พบข้อมูลปั๊มใน PDF', rawText: data.text.substring(0, 2000) });
+    }
+
+    const SUPABASE_URL = 'https://tekcyzixbsuankaiuncs.supabase.co';
+    const SUPABASE_KEY = 'sb_publishable_7VRgnntgw8VyGVgC8mTLrA_rnaE2vm0';
+
+    let added = 0, updated = 0;
+
+    for (const station of parsed) {
+      // Insert or find station
+      const findRes = await fetch(
+        `${SUPABASE_URL}/rest/v1/stations?name=eq.${encodeURIComponent(station.name)}&select=id`,
+        { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } }
+      );
+      const existing = await findRes.json();
+
+      let stationId;
+      if (existing.length > 0) {
+        stationId = existing[0].id;
+      } else {
+        // Insert new station
+        const insRes = await fetch(`${SUPABASE_URL}/rest/v1/stations`, {
+          method: 'POST',
+          headers: {
+            'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}`,
+            'Content-Type': 'application/json', 'Prefer': 'return=representation',
+          },
+          body: JSON.stringify({
+            name: station.name, brand: station.brand,
+            district_id: station.district_id,
+            osm_id: 'pdf/' + Date.now() + '-' + Math.random().toString(36).substr(2, 6),
+            is_open: true,
+          }),
+        });
+        if (!insRes.ok) continue;
+        const ins = await insRes.json();
+        stationId = ins[0]?.id;
+        if (!stationId) continue;
+        added++;
+      }
+
+      // Insert fuel reports
+      if (Object.keys(station.fuel).length > 0) {
+        const reports = Object.entries(station.fuel).map(([type, status]) => ({
+          station_id: stationId, fuel_type: type, status,
+        }));
+        await fetch(`${SUPABASE_URL}/rest/v1/fuel_reports`, {
+          method: 'POST',
+          headers: {
+            'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(reports),
+        });
+        updated++;
+      }
+    }
+
+    res.json({
+      success: true,
+      message: `พบ ${parsed.length} ปั๊ม, เพิ่มใหม่ ${added}, อัพเดทสถานะ ${updated}`,
+      stations: parsed.map(s => ({ name: s.name, brand: s.brand, fuel: s.fuel })),
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

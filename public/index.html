@@ -169,9 +169,11 @@
     <div class="container" id="station-list"></div>
 
     <div style="position:fixed;bottom:20px;right:20px;display:flex;flex-direction:column;gap:10px;z-index:50;">
+        <button class="fab" onclick="triggerPdfUpload()" title="นำเข้า PDF" style="position:static;width:44px;height:44px;font-size:1rem;background:#8b5cf6;box-shadow:0 4px 16px rgba(139,92,246,0.3);">📄</button>
         <button class="fab" onclick="openAddStationModal()" title="เพิ่มปั๊ม" style="position:static;width:44px;height:44px;font-size:1rem;background:#3b82f6;box-shadow:0 4px 16px rgba(59,130,246,0.3);">🏪</button>
         <button class="fab" onclick="openReportModal()" title="รายงาน" style="position:static;">+</button>
     </div>
+    <input type="file" id="pdf-input" accept=".pdf" style="display:none" onchange="uploadPdf(this)">
 
     <!-- Add Station Modal -->
     <div class="modal-overlay" id="add-station-modal" onclick="closeOverlay(event,'add-station-modal')">
@@ -621,6 +623,37 @@ function toast(msg) {
     document.body.appendChild(t); setTimeout(() => t.remove(), 3000);
 }
 document.head.appendChild(Object.assign(document.createElement('style'), { textContent: '@keyframes fadeOut{0%,70%{opacity:1}100%{opacity:0}}' }));
+
+// === PDF Import ===
+function triggerPdfUpload() {
+    if (!currentUser) { openModal('auth-modal'); return; }
+    document.getElementById('pdf-input').click();
+}
+async function uploadPdf(input) {
+    if (!input.files[0]) return;
+    const file = input.files[0];
+    toast('📄 กำลังนำเข้า ' + file.name + '...');
+
+    const formData = new FormData();
+    formData.append('pdf', file);
+
+    try {
+        const res = await fetch('/api/import-pdf', { method: 'POST', body: formData });
+        const data = await res.json();
+
+        if (data.success) {
+            toast('✅ ' + data.message);
+            await loadAll();
+        } else {
+            toast('⚠️ ' + (data.message || data.error));
+            if (data.rawText) console.log('PDF raw text:', data.rawText);
+        }
+    } catch (err) {
+        toast('❌ ' + err.message);
+    }
+
+    input.value = '';
+}
 
 // === Init ===
 initAuth(); loadAll(); setInterval(loadAll, 120000);
