@@ -1,0 +1,747 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>สถานะน้ำมัน จ.เชียงราย</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0f172a; color: #e2e8f0; min-height: 100vh; }
+
+        header { background: linear-gradient(135deg, #1e293b, #334155); padding: 14px 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #f59e0b; }
+        .header-left h1 { font-size: 1.2rem; color: #f59e0b; }
+        .header-left p { font-size: 0.7rem; color: #64748b; margin-top: 2px; }
+        .auth-area { display: flex; align-items: center; gap: 8px; }
+        .auth-area .user-name { font-size: 0.7rem; color: #94a3b8; max-width: 100px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .btn-auth { padding: 5px 12px; border-radius: 6px; border: 1px solid #f59e0b; background: transparent; color: #f59e0b; font-size: 0.7rem; cursor: pointer; }
+        .btn-auth:hover { background: #f59e0b; color: #0f172a; }
+        .btn-auth.logout { border-color: #475569; color: #94a3b8; }
+
+        /* Price Section */
+        .price-section { background: #0f172a; border-bottom: 1px solid #334155; }
+        .price-header { display: flex; justify-content: space-between; align-items: center; padding: 8px 16px; cursor: pointer; }
+        .price-header span { font-size: 0.75rem; color: #94a3b8; }
+        .price-header .btn-refresh { padding: 4px 10px; border-radius: 6px; border: 1px solid #475569; background: transparent; color: #f59e0b; font-size: 0.65rem; cursor: pointer; }
+        .price-header .btn-refresh:hover { background: #f59e0b20; }
+        .price-header .btn-refresh:disabled { opacity: 0.5; cursor: not-allowed; }
+        .price-table-wrap { overflow-x: auto; scrollbar-width: none; max-height: 0; transition: max-height 0.3s; }
+        .price-table-wrap.open { max-height: 600px; }
+        .price-table-wrap::-webkit-scrollbar { display: none; }
+        .price-table { width: 100%; border-collapse: collapse; font-size: 0.7rem; min-width: 500px; }
+        .price-table th { padding: 6px 8px; text-align: center; color: #64748b; font-weight: 600; border-bottom: 1px solid #1e293b; position: sticky; top: 0; background: #0f172a; }
+        .price-table th:first-child { text-align: left; min-width: 160px; }
+        .price-table td { padding: 5px 8px; text-align: center; border-bottom: 1px solid #1e293b08; }
+        .price-table td:first-child { text-align: left; color: #e2e8f0; font-weight: 500; }
+        .price-table tr:hover { background: #1e293b; }
+        .price-table .p-val { font-weight: 700; color: #e2e8f0; }
+        .price-table .p-val.cheapest { color: #22c55e; }
+        .price-table .p-na { color: #334155; }
+        .price-table .p-brand { font-size: 0.6rem; color: #64748b; }
+
+        /* Old ticker fallback */
+        .fuel-ticker { display: flex; overflow-x: auto; background: #0f172a; border-bottom: 1px solid #1e293b; scrollbar-width: none; }
+        .fuel-ticker::-webkit-scrollbar { display: none; }
+        .fuel-tick { display: flex; flex-direction: column; align-items: center; padding: 6px 12px; min-width: max-content; border-right: 1px solid #1e293b; }
+        .fuel-tick .ft-name { font-size: 0.55rem; color: #64748b; }
+        .fuel-tick .ft-price { font-size: 0.85rem; font-weight: 700; color: #e2e8f0; }
+        .fuel-tick .ft-unit { font-size: 0.5rem; color: #475569; }
+        .fuel-tick.diesel .ft-price { color: #38bdf8; }
+        .fuel-tick.e85 .ft-price { color: #22c55e; }
+        .fuel-tick.e20 .ft-price { color: #a3e635; }
+
+        /* Summary Bar */
+        .summary-bar { display: flex; justify-content: center; gap: 16px; padding: 8px 20px; background: #1e293b; border-bottom: 1px solid #334155; font-size: 0.75rem; }
+        .summary-item { color: #94a3b8; }
+        .summary-item strong { color: #f59e0b; }
+
+        /* Filters */
+        .filter-bar { padding: 10px 16px; background: #1e293b; display: flex; gap: 8px; flex-wrap: wrap; border-bottom: 1px solid #334155; }
+        .filter-bar select { padding: 6px 8px; border-radius: 6px; border: 1px solid #475569; background: #0f172a; color: #e2e8f0; font-size: 0.75rem; flex: 1; min-width: 100px; }
+        .filter-bar input { padding: 6px 8px; border-radius: 6px; border: 1px solid #475569; background: #0f172a; color: #e2e8f0; font-size: 0.75rem; flex: 2; min-width: 120px; }
+
+        /* Station List */
+        .container { max-width: 700px; margin: 0 auto; padding: 10px; display: flex; flex-direction: column; gap: 8px; padding-bottom: 80px; }
+
+        .station-card { background: #1e293b; border-radius: 10px; padding: 12px; border-left: 4px solid #475569; }
+        .station-card.open { border-left-color: #22c55e; }
+        .station-card.closed { border-left-color: #ef4444; opacity: 0.7; }
+
+        .sc-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 6px; }
+        .sc-name { font-size: 0.9rem; font-weight: 600; }
+        .sc-brand { font-size: 0.65rem; color: #94a3b8; margin-top: 1px; }
+        .sc-status { padding: 2px 8px; border-radius: 10px; font-size: 0.65rem; font-weight: 600; }
+        .sc-status.open { background: #22c55e20; color: #22c55e; }
+        .sc-status.closed { background: #ef444420; color: #ef4444; }
+
+        /* Fuel Status Grid */
+        .fuel-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; margin-top: 8px; }
+        .fuel-cell { text-align: center; padding: 6px 2px; border-radius: 6px; font-size: 0.65rem; }
+        .fuel-cell .fc-type { font-weight: 600; margin-bottom: 2px; }
+        .fuel-cell .fc-price { font-size: 0.6rem; opacity: 0.8; }
+        .fuel-cell.available { background: #22c55e18; color: #22c55e; }
+        .fuel-cell.low { background: #f59e0b18; color: #f59e0b; }
+        .fuel-cell.out { background: #ef444418; color: #ef4444; }
+        .fuel-cell.none { background: #33415518; color: #475569; }
+        .fuel-cell.unknown { background: #1e293b; color: #334155; border: 1px dashed #334155; }
+
+        .sc-footer { display: flex; justify-content: space-between; align-items: center; margin-top: 6px; font-size: 0.6rem; color: #475569; }
+        .sc-note { font-size: 0.65rem; color: #94a3b8; margin-top: 4px; font-style: italic; }
+        .sc-queue { font-size: 0.75rem; font-weight: 600; margin-top: 4px; }
+        .sc-queue.q-low { color: #22c55e; }
+        .sc-queue.q-med { color: #f59e0b; }
+        .sc-queue.q-high { color: #ef4444; }
+
+        .loading { text-align: center; padding: 40px; color: #64748b; }
+        .loading .spinner { display: inline-block; width: 24px; height: 24px; border: 3px solid #334155; border-top-color: #f59e0b; border-radius: 50%; animation: spin 0.8s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* FAB */
+        .fab { position: fixed; bottom: 20px; right: 20px; width: 52px; height: 52px; border-radius: 50%; background: #f59e0b; color: #0f172a; border: none; font-size: 1.4rem; cursor: pointer; box-shadow: 0 4px 16px rgba(245,158,11,0.4); z-index: 50; }
+
+        /* Modal */
+        .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 100; justify-content: center; align-items: flex-end; }
+        .modal-overlay.active { display: flex; }
+        .modal { background: #1e293b; border-radius: 16px 16px 0 0; padding: 18px; width: 100%; max-width: 500px; max-height: 85vh; overflow-y: auto; }
+        .modal h2 { font-size: 1rem; margin-bottom: 10px; color: #f59e0b; }
+        .modal label { display: block; font-size: 0.75rem; color: #94a3b8; margin: 8px 0 3px; }
+        .modal select, .modal input, .modal textarea { width: 100%; padding: 7px 10px; border-radius: 6px; border: 1px solid #475569; background: #0f172a; color: #e2e8f0; font-size: 0.8rem; }
+        .modal textarea { resize: vertical; min-height: 50px; }
+
+        .fuel-status-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; margin-top: 4px; }
+        .fs-btn { padding: 8px 2px; border-radius: 6px; border: 2px solid #475569; background: transparent; color: #94a3b8; cursor: pointer; text-align: center; font-size: 0.65rem; transition: all 0.15s; }
+        .fs-btn .fs-type { font-weight: 600; display: block; margin-bottom: 2px; }
+        .fs-btn.s-available { border-color: #22c55e; color: #22c55e; background: #22c55e15; }
+        .fs-btn.s-low { border-color: #f59e0b; color: #f59e0b; background: #f59e0b15; }
+        .fs-btn.s-out { border-color: #ef4444; color: #ef4444; background: #ef444415; }
+        .fs-btn.s-none { border-color: #334155; color: #475569; }
+
+        .modal-actions { display: flex; gap: 8px; margin-top: 14px; }
+        .modal-actions button { flex: 1; padding: 9px; border-radius: 8px; border: none; font-size: 0.8rem; font-weight: 600; cursor: pointer; }
+        .btn-cancel { background: #334155; color: #94a3b8; }
+        .btn-submit { background: #f59e0b; color: #0f172a; }
+        .btn-submit:disabled { opacity: 0.5; }
+
+        /* Auth */
+        .auth-error { color: #ef4444; font-size: 0.75rem; margin-top: 6px; display: none; }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="header-left">
+            <h1>⛽ สถานะน้ำมัน จ.เชียงราย</h1>
+            <p id="header-summary">กำลังโหลด...</p>
+        </div>
+        <div class="auth-area" id="auth-area">
+            <button class="btn-auth" onclick="openModal('auth-modal')">เข้าสู่ระบบ</button>
+        </div>
+    </header>
+
+    <div class="price-section">
+        <div class="price-header" onclick="togglePriceTable()">
+            <span id="price-summary">⛽ ราคาน้ำมันแต่ละปั๊ม (กดเพื่อดู)</span>
+            <button class="btn-refresh" id="btn-refresh-price" onclick="event.stopPropagation(); refreshPrices()">อัพเดทราคาล่าสุด</button>
+        </div>
+        <div class="price-table-wrap" id="price-table-wrap">
+            <table class="price-table" id="price-table"></table>
+        </div>
+    </div>
+    <div class="fuel-ticker" id="fuel-ticker" style="display:none"></div>
+
+    <div class="filter-bar">
+        <select id="filter-district" onchange="applyFilters()">
+            <option value="">ทุกอำเภอ</option>
+        </select>
+        <select id="filter-fuel" onchange="applyFilters()">
+            <option value="">สถานะทั้งหมด</option>
+            <option value="available">มีน้ำมัน</option>
+            <option value="low">เหลือน้อย</option>
+            <option value="out">หมด</option>
+            <option value="has_price">มีราคา</option>
+            <option value="cheapest">ราคาถูกสุด</option>
+        </select>
+        <input type="text" id="filter-search" placeholder="ค้นหาชื่อปั๊ม..." oninput="applyFilters()">
+    </div>
+
+    <div class="container" id="station-list"></div>
+
+    <div style="position:fixed;bottom:20px;right:20px;display:flex;flex-direction:column;gap:10px;z-index:50;">
+        <button class="fab" onclick="openAddStationModal()" title="เพิ่มปั๊ม" style="position:static;width:44px;height:44px;font-size:1rem;background:#3b82f6;box-shadow:0 4px 16px rgba(59,130,246,0.4);">🏪</button>
+        <button class="fab" onclick="openReportModal()" title="รายงาน" style="position:static;">+</button>
+    </div>
+
+    <!-- Add Station Modal -->
+    <div class="modal-overlay" id="add-station-modal" onclick="closeOverlay(event,'add-station-modal')">
+        <div class="modal" onclick="event.stopPropagation()">
+            <h2>🏪 เพิ่มปั๊มน้ำมันใหม่</h2>
+
+            <label>ชื่อปั๊ม / สาขา</label>
+            <input type="text" id="add-name" placeholder="เช่น PTT ปิยะพรเจริญกิจ สาขา 3">
+
+            <label>แบรนด์</label>
+            <select id="add-brand">
+                <option value="PTT">PTT</option>
+                <option value="PT">PT</option>
+                <option value="Bangchak">Bangchak</option>
+                <option value="Shell">Shell</option>
+                <option value="Caltex">Caltex</option>
+                <option value="Esso">Esso</option>
+                <option value="Susco">Susco</option>
+                <option value="Cosmo">Cosmo</option>
+                <option value="Other">อื่นๆ</option>
+            </select>
+
+            <label>อำเภอ</label>
+            <select id="add-district"></select>
+
+            <label>ตำบล / สถานที่ใกล้เคียง</label>
+            <input type="text" id="add-subdistrict" placeholder="เช่น ต.เวียง หรือ ใกล้สี่แยกเชียงราย">
+
+            <label>ลิงก์ Google Maps (ถ้ามี)</label>
+            <input type="url" id="add-maplink" placeholder="https://maps.google.com/...">
+
+            <label>จำนวนตู้จ่าย</label>
+            <input type="number" id="add-pumps" min="1" max="20" value="4" placeholder="4">
+
+            <div class="modal-actions">
+                <button class="btn-cancel" onclick="closeModal('add-station-modal')">ยกเลิก</button>
+                <button class="btn-submit" id="add-station-submit" onclick="submitAddStation()">เพิ่มปั๊ม</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Auth Modal -->
+    <div class="modal-overlay" id="auth-modal" onclick="closeOverlay(event,'auth-modal')">
+        <div class="modal" onclick="event.stopPropagation()">
+            <h2 id="auth-title">เข้าสู่ระบบ</h2>
+            <label>อีเมล</label>
+            <input type="email" id="auth-email" placeholder="email@example.com">
+            <label>รหัสผ่าน</label>
+            <input type="password" id="auth-password" placeholder="อย่างน้อย 6 ตัวอักษร">
+            <div class="auth-error" id="auth-error"></div>
+            <div class="modal-actions">
+                <button class="btn-cancel" onclick="closeModal('auth-modal')">ยกเลิก</button>
+                <button class="btn-submit" onclick="doAuth('login')">เข้าสู่ระบบ</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Report Modal -->
+    <div class="modal-overlay" id="report-modal" onclick="closeOverlay(event,'report-modal')">
+        <div class="modal" onclick="event.stopPropagation()">
+            <h2>📢 รายงานสถานะปั๊ม</h2>
+
+            <label>เลือกปั๊ม</label>
+            <select id="rpt-station" onchange="onStationSelect()"><option value="">-- เลือก --</option></select>
+
+            <label>สถานะปั๊ม</label>
+            <div style="display:flex;gap:8px;margin-top:4px;">
+                <button class="fs-btn" id="btn-open" onclick="setStationStatus(true)" style="flex:1;padding:10px;">🟢 เปิดปกติ</button>
+                <button class="fs-btn" id="btn-closed" onclick="setStationStatus(false)" style="flex:1;padding:10px;">🔴 ปิดชั่วคราว</button>
+            </div>
+
+            <label>สถานะน้ำมันแต่ละชนิด (กดเพื่อเปลี่ยนสถานะ)</label>
+            <div class="fuel-status-grid" id="fuel-status-grid"></div>
+
+            <label>คิวตอนนี้ (จำนวนรถรอ)</label>
+            <input type="number" id="rpt-cars" min="0" max="99" placeholder="เช่น 5 (ไม่ใส่ก็ได้)">
+
+            <label>ราคาน้ำมัน (บาท/ลิตร — ถ้าทราบ)</label>
+            <div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:4px;">
+                <input type="number" id="rpt-price-91" step="0.01" placeholder="91" style="flex:1;min-width:60px">
+                <input type="number" id="rpt-price-95" step="0.01" placeholder="95" style="flex:1;min-width:60px">
+                <input type="number" id="rpt-price-diesel" step="0.01" placeholder="ดีเซล" style="flex:1;min-width:60px">
+            </div>
+
+            <label>หมายเหตุ</label>
+            <textarea id="rpt-note" placeholder="เช่น E85 หมดตั้งแต่เช้า"></textarea>
+
+            <div class="modal-actions">
+                <button class="btn-cancel" onclick="closeModal('report-modal')">ยกเลิก</button>
+                <button class="btn-submit" id="rpt-submit" onclick="submitReport()">ส่งรายงาน</button>
+            </div>
+        </div>
+    </div>
+
+<script>
+// =============================================================
+// Config
+// =============================================================
+const SUPABASE_URL = 'https://tekcyzixbsuankaiuncs.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_7VRgnntgw8VyGVgC8mTLrA_rnaE2vm0';
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+const FUEL_TYPES = [
+    { key: 'diesel_b7', short: 'ดีเซล', name: 'ดีเซล B7' },
+    { key: 'gasohol_91', short: '91', name: 'แก๊สโซฮอล์ 91' },
+    { key: 'gasohol_95', short: '95', name: 'แก๊สโซฮอล์ 95' },
+    { key: 'gasohol_e20', short: 'E20', name: 'แก๊สโซฮอล์ E20' },
+    { key: 'gasohol_e85', short: 'E85', name: 'แก๊สโซฮอล์ E85' },
+];
+
+const STATUS_TEXT = { available: 'มี', low: 'น้อย', out: 'หมด', none: 'ไม่มี' };
+const STATUS_ICON = { available: '🟢', low: '🟡', out: '🔴', none: '⚫' };
+
+let allStations = [];
+let districts = [];
+let currentUser = null;
+let fuelStatusForm = {}; // { fuel_type: status }
+
+// =============================================================
+// Auth
+// =============================================================
+async function initAuth() {
+    const { data: { session } } = await sb.auth.getSession();
+    if (session) setUser(session.user);
+    sb.auth.onAuthStateChange((_, session) => setUser(session?.user || null));
+}
+
+function setUser(user) {
+    currentUser = user;
+    const el = document.getElementById('auth-area');
+    if (user) {
+        el.innerHTML = `<span class="user-name">${user.email.split('@')[0]}</span>
+            <button class="btn-auth logout" onclick="sb.auth.signOut()">ออก</button>`;
+    } else {
+        el.innerHTML = `<button class="btn-auth" onclick="openModal('auth-modal')">เข้าสู่ระบบ</button>`;
+    }
+}
+
+async function doAuth(mode) {
+    const email = document.getElementById('auth-email').value.trim();
+    const pw = document.getElementById('auth-password').value;
+    const errEl = document.getElementById('auth-error');
+    if (!email || !pw) { errEl.textContent = 'กรอกอีเมลและรหัสผ่าน'; errEl.style.display = 'block'; return; }
+
+    const result = mode === 'login'
+        ? await sb.auth.signInWithPassword({ email, password: pw })
+        : await sb.auth.signUp({ email, password: pw });
+
+    if (result.error) { errEl.textContent = result.error.message; errEl.style.display = 'block'; }
+    else { closeModal('auth-modal'); toast(mode === 'login' ? '✅ เข้าสู่ระบบสำเร็จ' : '✅ สมัครสำเร็จ!'); }
+}
+
+// =============================================================
+// Load Data
+// =============================================================
+async function loadAll() {
+    showLoading();
+
+    // Load districts
+    const { data: dData } = await sb.from('districts').select('*').order('id');
+    districts = dData || [];
+    const dSelect = document.getElementById('filter-district');
+    dSelect.innerHTML = '<option value="">ทุกอำเภอ</option>' +
+        districts.map(d => `<option value="${d.id}">${d.name}</option>`).join('');
+
+    // Load stations
+    const { data: sData } = await sb.from('stations').select('*').order('name');
+    if (!sData) { document.getElementById('station-list').innerHTML = '<p style="text-align:center;padding:40px;color:#64748b;">ยังไม่มีข้อมูลปั๊ม — กดปุ่ม + เพื่อเพิ่ม หรือ sync จาก OSM</p>'; return; }
+
+    // Load latest fuel reports
+    const ids = sData.map(s => s.id);
+    const { data: reports } = await sb.from('fuel_reports').select('*').in('station_id', ids.length ? ids : [0]).order('created_at', { ascending: false });
+
+    // Build station data with latest reports
+    const now = Date.now();
+    allStations = sData.map(s => {
+        const stReports = (reports || []).filter(r => r.station_id === s.id);
+        const fuel = {};
+        let latestQueue = null;
+        for (const r of stReports) {
+            if (!fuel[r.fuel_type]) {
+                fuel[r.fuel_type] = {
+                    status: r.status,
+                    price: r.price,
+                    remaining: r.remaining_liters,
+                    age: Math.floor((now - new Date(r.created_at).getTime()) / 60000),
+                };
+            }
+            if (r.queue_cars > 0 && !latestQueue) latestQueue = r.queue_cars;
+        }
+        const dist = districts.find(d => d.id === s.district_id);
+        return { ...s, fuel, queue: latestQueue, districtName: dist?.name || '' };
+    });
+
+    // Summary
+    const open = allStations.filter(s => s.is_open).length;
+    document.getElementById('header-summary').textContent =
+        `ปั๊มทั้งหมด ${allStations.length} แห่ง · เปิด ${open} · ปิด ${allStations.length - open}`;
+
+    applyFilters();
+    updatePriceTicker();
+}
+
+function updatePriceTicker() {
+    // สร้างตารางราคาแยกรายปั๊ม
+    const stationsWithPrices = allStations.filter(s =>
+        Object.values(s.fuel).some(f => f.price)
+    );
+
+    if (!stationsWithPrices.length) {
+        document.getElementById('price-summary').textContent = '⛽ ยังไม่มีข้อมูลราคา — กดอัพเดทราคาเพื่อดึงราคาล่าสุด';
+        return;
+    }
+
+    // หาราคาต่ำสุดแต่ละชนิด
+    const minPrices = {};
+    for (const ft of FUEL_TYPES) {
+        const prices = stationsWithPrices.map(s => s.fuel[ft.key]?.price).filter(Boolean).map(Number);
+        if (prices.length) minPrices[ft.key] = Math.min(...prices);
+    }
+
+    document.getElementById('price-summary').textContent =
+        `⛽ ราคาน้ำมัน ${stationsWithPrices.length} ปั๊ม (กดเพื่อดู/ซ่อน)`;
+
+    const table = document.getElementById('price-table');
+    table.innerHTML = `
+        <thead><tr>
+            <th>ปั๊ม</th>
+            ${FUEL_TYPES.map(ft => `<th>${ft.short}</th>`).join('')}
+        </tr></thead>
+        <tbody>
+        ${stationsWithPrices.map(s => `<tr>
+            <td><span>${s.name}</span><br><span class="p-brand">${s.brand} · ${s.districtName}</span></td>
+            ${FUEL_TYPES.map(ft => {
+                const f = s.fuel[ft.key];
+                if (!f || !f.price) return '<td class="p-na">-</td>';
+                const isCheapest = +f.price === minPrices[ft.key];
+                return `<td class="p-val ${isCheapest ? 'cheapest' : ''}">${Number(f.price).toFixed(2)}${isCheapest ? ' ★' : ''}</td>`;
+            }).join('')}
+        </tr>`).join('')}
+        </tbody>
+    `;
+}
+
+function togglePriceTable() {
+    document.getElementById('price-table-wrap').classList.toggle('open');
+}
+
+async function refreshPrices() {
+    const btn = document.getElementById('btn-refresh-price');
+    btn.disabled = true;
+    btn.textContent = 'กำลังดึงราคา...';
+
+    try {
+        const res = await fetch('/api/refresh-prices', { method: 'POST' });
+        const data = await res.json();
+
+        if (data.error) { toast('❌ ' + data.error); return; }
+
+        toast(`✅ อัพเดทราคา ${data.updated} ปั๊ม (${data.reports} รายการ)`);
+        await loadAll();
+        document.getElementById('price-table-wrap').classList.add('open');
+    } catch (err) {
+        toast('❌ ' + err.message);
+    }
+
+    btn.disabled = false;
+    btn.textContent = 'อัพเดทราคาล่าสุด';
+}
+
+function applyFilters() {
+    const distId = document.getElementById('filter-district').value;
+    const fuelFilter = document.getElementById('filter-fuel').value;
+    const search = document.getElementById('filter-search').value.toLowerCase();
+
+    let filtered = allStations;
+    if (distId) filtered = filtered.filter(s => s.district_id == distId);
+    if (search) filtered = filtered.filter(s => s.name.toLowerCase().includes(search) || s.brand.toLowerCase().includes(search));
+
+    if (fuelFilter === 'has_price') {
+        filtered = filtered.filter(s => Object.values(s.fuel).some(f => f.price));
+    } else if (fuelFilter === 'cheapest') {
+        filtered = filtered.filter(s => Object.values(s.fuel).some(f => f.price));
+        filtered.sort((a, b) => {
+            const aMin = Math.min(...Object.values(a.fuel).filter(f => f.price).map(f => +f.price));
+            const bMin = Math.min(...Object.values(b.fuel).filter(f => f.price).map(f => +f.price));
+            return aMin - bMin;
+        });
+    } else if (fuelFilter) {
+        filtered = filtered.filter(s => FUEL_TYPES.some(ft => s.fuel[ft.key]?.status === fuelFilter));
+    }
+
+    renderStations(filtered);
+}
+
+// =============================================================
+// Render
+// =============================================================
+function showLoading() {
+    document.getElementById('station-list').innerHTML = '<div class="loading"><div class="spinner"></div><br>กำลังโหลด...</div>';
+}
+
+function renderStations(list) {
+    const el = document.getElementById('station-list');
+    if (!list.length) {
+        el.innerHTML = '<p style="text-align:center;color:#64748b;padding:40px;">ไม่พบปั๊มที่ตรงกับตัวกรอง</p>';
+        return;
+    }
+
+    el.innerHTML = list.map(s => {
+        const statusClass = s.is_open ? 'open' : 'closed';
+        const statusText = s.is_open ? 'เปิดปกติ' : 'ปิดชั่วคราว';
+
+        const fuelCells = FUEL_TYPES.map(ft => {
+            const f = s.fuel[ft.key];
+            if (!f) return `<div class="fuel-cell unknown"><div class="fc-type">${ft.short}</div><div>-</div></div>`;
+            const priceStr = f.price ? `<div class="fc-price">฿${Number(f.price).toFixed(2)}</div>` : '';
+            return `<div class="fuel-cell ${f.status}"><div class="fc-type">${ft.short}</div><div>${STATUS_TEXT[f.status]}</div>${priceStr}</div>`;
+        }).join('');
+
+        let queueStr = '';
+        if (s.queue) {
+            const qClass = s.queue <= 3 ? 'q-low' : s.queue <= 7 ? 'q-med' : 'q-high';
+            queueStr = `<div class="sc-queue ${qClass}">🚗 คิว ~${s.queue} คัน (~${Math.ceil(s.queue * 3)} นาที)</div>`;
+        }
+
+        const noteStr = s.note ? `<div class="sc-note">"${s.note}"</div>` : '';
+
+        return `
+        <div class="station-card ${statusClass}" onclick="openReportForStation(${s.id})">
+            <div class="sc-header">
+                <div>
+                    <div class="sc-name">${s.name}</div>
+                    <div class="sc-brand">${s.brand} · ${s.districtName}${s.subdistrict ? ' · ' + s.subdistrict : ''}</div>
+                </div>
+                <span class="sc-status ${statusClass}">${statusText}</span>
+            </div>
+            <div class="fuel-grid">${fuelCells}</div>
+            ${queueStr}${noteStr}
+            <div class="sc-footer">
+                <a href="${s.lat ? `https://www.google.com/maps?q=${s.lat},${s.lng}` : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(s.name + ' ' + s.districtName + ' เชียงราย')}`}" target="_blank" onclick="event.stopPropagation()" style="color:#3b82f6;text-decoration:none;">📍 แผนที่</a>
+                <span>${Object.keys(s.fuel).length > 0 ? 'อัปเดตล่าสุด ' + Object.values(s.fuel).map(f => f.age + ' นาที').sort()[0] + ' ที่แล้ว' : 'ยังไม่มีรายงาน'}</span>
+            </div>
+        </div>`;
+    }).join('');
+}
+
+// =============================================================
+// Report Modal
+// =============================================================
+function openReportModal() {
+    if (!currentUser) { openModal('auth-modal'); return; }
+    const sel = document.getElementById('rpt-station');
+    sel.innerHTML = '<option value="">-- เลือกปั๊ม --</option>' +
+        allStations.map(s => `<option value="${s.id}">${s.name} (${s.districtName})</option>`).join('');
+    resetForm();
+    openModal('report-modal');
+}
+
+function openReportForStation(id) {
+    if (!currentUser) { openModal('auth-modal'); return; }
+    openReportModal();
+    document.getElementById('rpt-station').value = id;
+}
+
+let stationIsOpen = true;
+
+function resetForm() {
+    fuelStatusForm = {};
+    stationIsOpen = true;
+    document.getElementById('rpt-cars').value = '';
+    document.getElementById('rpt-price-91').value = '';
+    document.getElementById('rpt-price-95').value = '';
+    document.getElementById('rpt-price-diesel').value = '';
+    document.getElementById('rpt-note').value = '';
+    updateStatusButtons();
+    renderFuelStatusGrid();
+}
+
+function onStationSelect() {
+    const id = parseInt(document.getElementById('rpt-station').value);
+    const s = allStations.find(st => st.id === id);
+    if (s) {
+        stationIsOpen = s.is_open;
+        updateStatusButtons();
+    }
+}
+
+function setStationStatus(isOpen) {
+    stationIsOpen = isOpen;
+    updateStatusButtons();
+}
+
+function updateStatusButtons() {
+    const btnOpen = document.getElementById('btn-open');
+    const btnClosed = document.getElementById('btn-closed');
+    if (stationIsOpen) {
+        btnOpen.className = 'fs-btn s-available';
+        btnClosed.className = 'fs-btn';
+    } else {
+        btnOpen.className = 'fs-btn';
+        btnClosed.className = 'fs-btn s-out';
+    }
+}
+
+function renderFuelStatusGrid() {
+    const grid = document.getElementById('fuel-status-grid');
+    grid.innerHTML = FUEL_TYPES.map(ft => {
+        const st = fuelStatusForm[ft.key] || 'available';
+        return `<button class="fs-btn s-${st}" onclick="cycleFuelStatus('${ft.key}')">
+            <span class="fs-type">${ft.short}</span>${STATUS_ICON[st]} ${STATUS_TEXT[st]}
+        </button>`;
+    }).join('');
+}
+
+function cycleFuelStatus(key) {
+    const order = ['available', 'low', 'out', 'none'];
+    const cur = fuelStatusForm[key] || 'available';
+    const next = order[(order.indexOf(cur) + 1) % order.length];
+    fuelStatusForm[key] = next;
+    renderFuelStatusGrid();
+}
+
+async function submitReport() {
+    const stationId = parseInt(document.getElementById('rpt-station').value);
+    if (!stationId) { alert('กรุณาเลือกปั๊ม'); return; }
+
+    const btn = document.getElementById('rpt-submit');
+    btn.disabled = true;
+
+    const cars = parseInt(document.getElementById('rpt-cars').value) || 0;
+    const note = document.getElementById('rpt-note').value.trim();
+    const prices = {
+        gasohol_91: parseFloat(document.getElementById('rpt-price-91').value) || null,
+        gasohol_95: parseFloat(document.getElementById('rpt-price-95').value) || null,
+        diesel_b7: parseFloat(document.getElementById('rpt-price-diesel').value) || null,
+    };
+
+    try {
+        // อัพเดทสถานะเปิด/ปิดปั๊ม
+        const { error: updateErr } = await sb.from('stations')
+            .update({ is_open: stationIsOpen })
+            .eq('id', stationId);
+        if (updateErr) throw updateErr;
+
+        // Insert fuel reports
+        const rows = FUEL_TYPES.map(ft => ({
+            station_id: stationId,
+            user_id: currentUser.id,
+            fuel_type: ft.key,
+            status: fuelStatusForm[ft.key] || 'available',
+            price: prices[ft.key] || null,
+            queue_cars: cars,
+            note: note || null,
+        }));
+
+        const { error } = await sb.from('fuel_reports').insert(rows);
+        if (error) throw error;
+
+        closeModal('report-modal');
+        toast(`✅ รายงานสำเร็จ! (${stationIsOpen ? 'เปิดปกติ' : 'ปิดชั่วคราว'})`);
+        await loadAll();
+    } catch (err) {
+        toast('❌ ' + err.message);
+    }
+    btn.disabled = false;
+}
+
+// =============================================================
+// Fuel Prices (server scraper)
+// =============================================================
+async function loadFuelPrices() {
+    try {
+        const res = await fetch('/api/fuel-prices');
+        const data = await res.json();
+        const bar = document.getElementById('fuel-ticker');
+        bar.innerHTML = data.prices.map(p => {
+            let cls = '';
+            if (p.key.includes('diesel')) cls = 'diesel';
+            else if (p.key.includes('e85')) cls = 'e85';
+            else if (p.key.includes('e20')) cls = 'e20';
+            return `<div class="fuel-tick ${cls}"><span class="ft-name">${p.name}</span><span class="ft-price">${p.price.toFixed(2)}</span><span class="ft-unit">บาท/ลิตร</span></div>`;
+        }).join('');
+    } catch { }
+}
+
+// =============================================================
+// Helpers
+// =============================================================
+function openModal(id) { document.getElementById(id).classList.add('active'); }
+
+// =============================================================
+// Add Station
+// =============================================================
+function openAddStationModal() {
+    if (!currentUser) { openModal('auth-modal'); return; }
+    const dSel = document.getElementById('add-district');
+    dSel.innerHTML = districts.map(d => `<option value="${d.id}">${d.name}</option>`).join('');
+    document.getElementById('add-name').value = '';
+    document.getElementById('add-subdistrict').value = '';
+    document.getElementById('add-maplink').value = '';
+    document.getElementById('add-pumps').value = '4';
+    openModal('add-station-modal');
+}
+
+async function submitAddStation() {
+    const name = document.getElementById('add-name').value.trim();
+    const brand = document.getElementById('add-brand').value;
+    const districtId = parseInt(document.getElementById('add-district').value);
+    const subdistrict = document.getElementById('add-subdistrict').value.trim();
+    const maplink = document.getElementById('add-maplink').value.trim();
+    const pumps = parseInt(document.getElementById('add-pumps').value) || 4;
+
+    if (!name) { alert('กรุณากรอกชื่อปั๊ม'); return; }
+
+    const btn = document.getElementById('add-station-submit');
+    btn.disabled = true;
+
+    // พยายามดึงพิกัดจาก Google Maps link
+    let lat = null, lng = null;
+    if (maplink) {
+        const coordMatch = maplink.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/) ||
+                           maplink.match(/query=(-?\d+\.\d+),(-?\d+\.\d+)/) ||
+                           maplink.match(/(\d+\.\d+),\s*(\d+\.\d+)/);
+        if (coordMatch) {
+            lat = parseFloat(coordMatch[1]);
+            lng = parseFloat(coordMatch[2]);
+        }
+        // ดึงจาก place URL เช่น place/.../@lat,lng
+        if (!lat) {
+            const placeMatch = maplink.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/);
+            if (placeMatch) { lat = parseFloat(placeMatch[1]); lng = parseFloat(placeMatch[2]); }
+        }
+    }
+
+    try {
+        const osm_id = 'real/' + brand.toLowerCase() + '-' + Date.now();
+        const { error } = await sb.from('stations').insert({
+            name, brand, district_id: districtId,
+            subdistrict: subdistrict || null,
+            pumps, lat, lng,
+            osm_id, is_open: true,
+        });
+        if (error) throw error;
+
+        closeModal('add-station-modal');
+        toast('✅ เพิ่มปั๊ม "' + name + '" สำเร็จ!');
+        await loadAll();
+    } catch (err) {
+        toast('❌ ' + err.message);
+    }
+    btn.disabled = false;
+}
+function closeModal(id) { document.getElementById(id).classList.remove('active'); }
+function closeOverlay(e, id) { if (e.target === e.currentTarget) closeModal(id); }
+function toast(msg) {
+    const t = document.createElement('div');
+    t.textContent = msg;
+    t.style.cssText = `position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:${msg.includes('❌')?'#ef4444':'#22c55e'};color:#fff;padding:10px 18px;border-radius:8px;font-size:0.8rem;z-index:200;animation:fadeOut 2.5s forwards;`;
+    document.body.appendChild(t);
+    setTimeout(() => t.remove(), 3000);
+}
+const sty = document.createElement('style');
+sty.textContent = `@keyframes fadeOut{0%,70%{opacity:1}100%{opacity:0}}`;
+document.head.appendChild(sty);
+
+// =============================================================
+// Init
+// =============================================================
+initAuth();
+loadFuelPrices();
+loadAll();
+setInterval(loadAll, 120000);
+</script>
+</body>
+</html>
