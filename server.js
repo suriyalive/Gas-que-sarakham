@@ -232,68 +232,81 @@ function detectBrandFromText(text) {
 }
 
 function parsePdfText(text) {
-  const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
-  const results = [];
-  let currentDistrict = null;
+  // รวมบรรทัดที่ถูกตัดกลางคัน (URL ยาว)
+  const rawLines = text.split('\n');
+  const merged = [];
+  for (let i = 0; i < rawLines.length; i++) {
+    const line = rawLines[i].trim();
+    if (!line) continue;
+    // ถ้าเป็น header ข้าม
+    if (/อําเภอ.*ชื.*สถานี|อำเภอ.*ชื.*สถานี/.test(line)) continue;
+    // ถ้าบรรทัดเริ่มด้วย district name → บรรทัดใหม่
+    let startsWithDistrict = false;
+    for (const name of Object.keys(DISTRICT_MAP)) {
+      if (line.startsWith(name) || line.startsWith('เเ' + name.slice(1))) { startsWithDistrict = true; break; }
+    }
+    if (startsWithDistrict) {
+      merged.push(line);
+    } else if (merged.length > 0) {
+      merged[merged.length - 1] += ' ' + line;
+    }
+  }
 
-  for (const line of lines) {
-    // ตรวจหาอำเภอ
+  const FUEL_CODES = { 'G95': 'gasohol_95', 'G91': 'gasohol_91', 'E20': 'gasohol_e20', 'E85': 'gasohol_e85', 'B7': 'diesel_b7' };
+  const results = [];
+
+  for (const line of merged) {
+    // หา district
+    let distId = 1;
+    let restLine = line;
     for (const [name, id] of Object.entries(DISTRICT_MAP)) {
-      if (line.includes(name) && (line.includes('อำเภอ') || line.includes('อ.') || Object.keys(DISTRICT_MAP).some(d => line.startsWith(d)))) {
-        currentDistrict = id;
+      // จับทั้ง แม่สาย และ เเม่สาย (ตัว แ ซ้ำ)
+      if (line.startsWith(name) || line.startsWith('เเ' + name.slice(1))) {
+        distId = id;
+        restLine = line.slice(line.indexOf(name) + name.length).trim();
+        if (line.startsWith('เเ')) restLine = line.slice(line.startsWith('เเม่') ? name.length + 1 : name.length).trim();
         break;
       }
     }
 
-    // ตรวจหาชื่อปั๊ม + สถานะน้ำมัน
-    const hasStatus = /มีขาย|หมด|ไม่มี|เหลือน้อย/.test(line);
-    const hasBrand = BRAND_PATTERNS.some(([p]) => p.test(line));
+    // หา brand
+    const brand = detectBrandFromText(restLine);
 
-    if (hasBrand || hasStatus) {
-      const brand = detectBrandFromText(line);
-
-      // ดึงสถานะน้ำมันแต่ละชนิด
-      const fuel = {};
-      const fuelKeys = ['gasohol_95', 'gasohol_91', 'gasohol_e20', 'gasohol_e85', 'diesel_b7'];
-
-      // นับคำว่า "มีขาย" ในบรรทัด
-      const availCount = (line.match(/มีขาย/g) || []).length;
-      const outCount = (line.match(/หมด/g) || []).length;
-
-      // ถ้ามีข้อมูลสถานะ
-      if (availCount > 0 || outCount > 0) {
-        // ลองจับตำแหน่งของแต่ละสถานะ
-        let idx = 0;
-        for (const key of fuelKeys) {
-          if (idx < availCount) {
-            fuel[key] = 'available';
-          }
-          idx++;
-        }
+    // หา fuel types ที่กล่าวถึง (G95, G91, E20, E85, B7)
+    const fuel = {};
+    for (const [code, key] of Object.entries(FUEL_CODES)) {
+      if (new RegExp('\\b' + code + '\\b', 'i').test(line)) {
+        fuel[key] = 'available';
       }
+    }
 
-      // ดึง district จากบรรทัด
-      let distId = currentDistrict;
-      for (const [name, id] of Object.entries(DISTRICT_MAP)) {
-        if (line.includes(name)) { distId = id; break; }
-      }
+    // ดึง Google Maps URL
+    const urlMatch = line.match(/(https?:\/\/[^\s]+)/);
+    let lat = null, lng = null;
+    if (urlMatch) {
+      const coordMatch = urlMatch[1].match(/@(-?\d+\.\d+),(-?\d+\.\d+)/);
+      if (coordMatch) { lat = +coordMatch[1]; lng = +coordMatch[2]; }
+    }
 
-      // ดึงชื่อปั๊ม
-      let stationName = line
-        .replace(/มีขาย|หมด|ไม่มี|เหลือน้อย/g, '')
-        .replace(/\d{1,2}\/\d{1,2}\/\d{4}/g, '')
-        .replace(/https?:\/\/\S+/g, '')
-        .replace(/\s+/g, ' ')
-        .trim();
+    // ดึงชื่อปั๊ม: ตัด district, fuel codes, URL, dates ออก
+    let stationName = restLine
+      .replace(/(https?:\/\/\S+)/g, '')
+      .replace(/\b(G95|G91|E20|E85|B7|Premium)\b/gi, '')
+      .replace(/\d{1,2}\/\d{1,2}\/\d{4}[,\s\d:]*/g, '')
+      .replace(/\s+/g, ' ')
+      .trim();
 
-      if (stationName.length > 5 && distId) {
-        results.push({
-          name: stationName.substring(0, 100),
-          brand,
-          district_id: distId,
-          fuel,
-        });
-      }
+    // ตัดชื่อไม่ให้ยาวเกิน
+    if (stationName.length > 100) stationName = stationName.substring(0, 100);
+
+    if (stationName.length >= 3 && brand !== 'skip') {
+      results.push({
+        name: stationName,
+        brand,
+        district_id: distId,
+        fuel,
+        lat, lng,
+      });
     }
   }
 
@@ -349,6 +362,7 @@ app.post('/api/import-pdf', upload.single('pdf'), async (req, res) => {
           body: JSON.stringify({
             name: station.name, brand: station.brand,
             district_id: station.district_id,
+            lat: station.lat, lng: station.lng,
             osm_id: 'pdf/' + Date.now() + '-' + Math.random().toString(36).slice(2, 8),
             is_open: true,
           }),
