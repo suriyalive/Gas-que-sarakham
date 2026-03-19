@@ -133,7 +133,17 @@
     </div>
 
     <div class="filter-bar">
-        <select id="filter-district" onchange="applyFilters()"><option value="">ทุกอำเภอ</option></select>
+        <select id="filter-district" onchange="updateSubdistrictFilter(); applyFilters()"><option value="">ทุกอำเภอ</option></select>
+        <select id="filter-subdistrict" onchange="applyFilters()"><option value="">ทุกตำบล</option></select>
+        <select id="filter-brand" onchange="applyFilters()"><option value="">ทุกแบรนด์</option></select>
+        <select id="filter-fuel-type" onchange="applyFilters()">
+            <option value="">น้ำมันทุกชนิด</option>
+            <option value="diesel_b7">ดีเซล B7</option>
+            <option value="gasohol_91">แก๊สโซฮอล์ 91</option>
+            <option value="gasohol_95">แก๊สโซฮอล์ 95</option>
+            <option value="gasohol_e20">แก๊สโซฮอล์ E20</option>
+            <option value="gasohol_e85">เบนซิน 95</option>
+        </select>
         <select id="filter-fuel" onchange="applyFilters()">
             <option value="">สถานะทั้งหมด</option>
             <option value="available">มีน้ำมัน</option>
@@ -307,6 +317,12 @@ async function loadAll() {
     const open = allStations.filter(s => s.is_open).length;
     document.getElementById('header-summary').textContent = `ปั๊มทั้งหมด ${allStations.length} แห่ง · เปิด ${open} · ปิด ${allStations.length - open}`;
 
+    // Populate brand filter
+    const brands = [...new Set(allStations.map(s => s.brand))].sort();
+    document.getElementById('filter-brand').innerHTML = '<option value="">ทุกแบรนด์</option>' +
+        brands.map(b => `<option value="${b}">${b}</option>`).join('');
+
+    updateSubdistrictFilter();
     applyFilters();
     updatePriceByBrand();
 }
@@ -396,22 +412,49 @@ async function refreshPrices() {
     btn.disabled = false; btn.textContent = 'อัพเดทราคาล่าสุด';
 }
 
+function updateSubdistrictFilter() {
+    const distId = document.getElementById('filter-district').value;
+    const sel = document.getElementById('filter-subdistrict');
+    if (!distId) {
+        const allSubs = [...new Set(allStations.map(s => s.subdistrict).filter(Boolean))].sort();
+        sel.innerHTML = '<option value="">ทุกตำบล</option>' + allSubs.map(s => `<option value="${s}">${s}</option>`).join('');
+    } else {
+        const subs = [...new Set(allStations.filter(s => s.district_id == distId).map(s => s.subdistrict).filter(Boolean))].sort();
+        sel.innerHTML = '<option value="">ทุกตำบล</option>' + subs.map(s => `<option value="${s}">${s}</option>`).join('');
+    }
+}
+
 function applyFilters() {
     const distId = document.getElementById('filter-district').value;
+    const subdistrict = document.getElementById('filter-subdistrict').value;
+    const brand = document.getElementById('filter-brand').value;
+    const fuelType = document.getElementById('filter-fuel-type').value;
     const fuelFilter = document.getElementById('filter-fuel').value;
     const search = document.getElementById('filter-search').value.toLowerCase();
+
     let filtered = allStations;
     if (distId) filtered = filtered.filter(s => s.district_id == distId);
+    if (subdistrict) filtered = filtered.filter(s => s.subdistrict === subdistrict);
+    if (brand) filtered = filtered.filter(s => s.brand === brand);
     if (search) filtered = filtered.filter(s => s.name.toLowerCase().includes(search) || s.brand.toLowerCase().includes(search));
+
+    // กรองตามชนิดน้ำมัน (หาปั๊มที่มีน้ำมันชนิดนั้น)
+    if (fuelType) filtered = filtered.filter(s => s.fuel[fuelType] && s.fuel[fuelType].status !== 'none');
+
     if (fuelFilter === 'has_price') filtered = filtered.filter(s => Object.values(s.fuel).some(f => f.price));
     else if (fuelFilter === 'cheapest') {
         filtered = filtered.filter(s => Object.values(s.fuel).some(f => f.price));
+        const sortKey = fuelType || 'diesel_b7';
         filtered.sort((a, b) => {
-            const aMin = Math.min(...Object.values(a.fuel).filter(f => f.price).map(f => +f.price));
-            const bMin = Math.min(...Object.values(b.fuel).filter(f => f.price).map(f => +f.price));
-            return aMin - bMin;
+            const aP = a.fuel[sortKey]?.price || 999;
+            const bP = b.fuel[sortKey]?.price || 999;
+            return +aP - +bP;
         });
-    } else if (fuelFilter) filtered = filtered.filter(s => FUEL_TYPES.some(ft => s.fuel[ft.key]?.status === fuelFilter));
+    } else if (fuelFilter) {
+        if (fuelType) filtered = filtered.filter(s => s.fuel[fuelType]?.status === fuelFilter);
+        else filtered = filtered.filter(s => FUEL_TYPES.some(ft => s.fuel[ft.key]?.status === fuelFilter));
+    }
+
     renderStations(filtered);
 }
 
