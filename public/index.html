@@ -11,25 +11,25 @@
 
         /* Header */
         header { background: #fff; padding: 14px 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #f59e0b; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
-        .header-left h1 { font-size: 1.2rem; color: #b45309; }
-        .header-left p { font-size: 0.7rem; color: #94a3b8; margin-top: 2px; }
+        .header-left h1 { font-size: 1.4rem; color: #b45309; }
+        .header-left p { font-size: 1rem; color: #94a3b8; margin-top: 2px; }
         .auth-area { display: flex; align-items: center; gap: 8px; }
-        .auth-area .user-name { font-size: 0.7rem; color: #64748b; max-width: 100px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        .btn-auth { padding: 5px 12px; border-radius: 6px; border: 1px solid #f59e0b; background: transparent; color: #b45309; font-size: 0.7rem; cursor: pointer; }
+        .auth-area .user-name { font-size: 1rem; color: #64748b; max-width: 100px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .btn-auth { padding: 5px 12px; border-radius: 6px; border: 1px solid #f59e0b; background: transparent; color: #b45309; font-size: 1rem; cursor: pointer; }
         .btn-auth:hover { background: #f59e0b; color: #fff; }
         .btn-auth.logout { border-color: #cbd5e1; color: #94a3b8; }
 
         /* Price Section */
         .price-section { background: #fff; border-bottom: 1px solid #e2e8f0; }
         .price-header { display: flex; justify-content: space-between; align-items: center; padding: 10px 16px; cursor: pointer; }
-        .price-header span { font-size: 0.8rem; color: #475569; font-weight: 600; }
-        .price-header .btn-refresh { padding: 5px 12px; border-radius: 6px; border: 1px solid #e2e8f0; background: #f8fafc; color: #b45309; font-size: 0.7rem; cursor: pointer; font-weight: 600; }
+        .price-header span { font-size: 1rem; color: #475569; font-weight: 600; }
+        .price-header .btn-refresh { padding: 5px 12px; border-radius: 6px; border: 1px solid #e2e8f0; background: #f8fafc; color: #b45309; font-size: 1rem; cursor: pointer; font-weight: 600; }
         .price-header .btn-refresh:hover { background: #fef3c7; }
         .price-header .btn-refresh:disabled { opacity: 0.5; cursor: not-allowed; }
         .price-table-wrap { overflow-x: auto; scrollbar-width: none; max-height: 0; transition: max-height 0.3s; }
         .price-table-wrap.open { max-height: 600px; }
         .price-table-wrap::-webkit-scrollbar { display: none; }
-        .price-table { width: 100%; border-collapse: collapse; font-size: 0.75rem; min-width: 420px; }
+        .price-table { width: 100%; border-collapse: collapse; font-size: 1rem; min-width: 420px; }
         .price-table th { padding: 8px; text-align: center; color: #64748b; font-weight: 600; border-bottom: 2px solid #e2e8f0; background: #f8fafc; position: sticky; top: 0; }
         .price-table th:first-child { text-align: left; min-width: 80px; }
         .price-table td { padding: 6px 8px; text-align: center; border-bottom: 1px solid #f1f5f9; }
@@ -45,8 +45,8 @@
 
         /* Filters */
         .filter-bar { padding: 10px 16px; background: #fff; display: flex; gap: 8px; flex-wrap: wrap; border-bottom: 1px solid #e2e8f0; }
-        .filter-bar select { padding: 7px 10px; border-radius: 8px; border: 1px solid #e2e8f0; background: #fff; color: #1e293b; font-size: 0.8rem; flex: 1; min-width: 100px; }
-        .filter-bar input { padding: 7px 10px; border-radius: 8px; border: 1px solid #e2e8f0; background: #fff; color: #1e293b; font-size: 0.8rem; flex: 2; min-width: 120px; }
+        .filter-bar select { padding: 7px 10px; border-radius: 8px; border: 1px solid #e2e8f0; background: #fff; color: #1e293b; font-size: 1rem; flex: 1; min-width: 100px; }
+        .filter-bar input { padding: 7px 10px; border-radius: 8px; border: 1px solid #e2e8f0; background: #fff; color: #1e293b; font-size: 1rem; flex: 2; min-width: 120px; }
 
         /* Station List */
         .container { max-width: 700px; margin: 0 auto; padding: 10px; display: flex; flex-direction: column; gap: 8px; padding-bottom: 80px; }
@@ -56,14 +56,14 @@
         .station-card.closed { border-left-color: #ef4444; opacity: 0.7; }
 
         .sc-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 6px; }
-        .sc-name { font-size: 0.9rem; font-weight: 600; color: #0f172a; }
-        .sc-brand { font-size: 0.65rem; color: #94a3b8; margin-top: 1px; }
-        .sc-status { padding: 2px 8px; border-radius: 10px; font-size: 0.65rem; font-weight: 600; }
+        .sc-name { font-size: 1.05rem; font-weight: 600; color: #0f172a; }
+        .sc-brand { font-size: 1rem; color: #94a3b8; margin-top: 1px; }
+        .sc-status { padding: 2px 8px; border-radius: 10px; font-size: 1rem; font-weight: 600; }
         .sc-status.open { background: #dcfce7; color: #16a34a; }
         .sc-status.closed { background: #fee2e2; color: #dc2626; }
 
         .fuel-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; margin-top: 8px; }
-        .fuel-cell { text-align: center; padding: 6px 2px; border-radius: 6px; font-size: 0.65rem; }
+        .fuel-cell { text-align: center; padding: 6px 2px; border-radius: 6px; font-size: 1rem; }
         .fuel-cell .fc-type { font-weight: 600; margin-bottom: 2px; }
         .fuel-cell .fc-price { font-size: 0.6rem; opacity: 0.8; }
         .fuel-cell.available { background: #dcfce7; color: #16a34a; }
@@ -73,8 +73,8 @@
         .fuel-cell.unknown { background: #f8fafc; color: #cbd5e1; border: 1px dashed #e2e8f0; }
 
         .sc-footer { display: flex; justify-content: space-between; align-items: center; margin-top: 6px; font-size: 0.6rem; color: #94a3b8; }
-        .sc-note { font-size: 0.65rem; color: #64748b; margin-top: 4px; font-style: italic; }
-        .sc-queue { font-size: 0.75rem; font-weight: 600; margin-top: 4px; }
+        .sc-note { font-size: 1rem; color: #64748b; margin-top: 4px; font-style: italic; }
+        .sc-queue { font-size: 1rem; font-weight: 600; margin-top: 4px; }
         .sc-queue.q-low { color: #16a34a; }
         .sc-queue.q-med { color: #ca8a04; }
         .sc-queue.q-high { color: #dc2626; }
@@ -91,12 +91,12 @@
         .modal-overlay.active { display: flex; }
         .modal { background: #fff; border-radius: 16px 16px 0 0; padding: 18px; width: 100%; max-width: 500px; max-height: 85vh; overflow-y: auto; }
         .modal h2 { font-size: 1rem; margin-bottom: 10px; color: #b45309; }
-        .modal label { display: block; font-size: 0.75rem; color: #64748b; margin: 8px 0 3px; }
-        .modal select, .modal input, .modal textarea { width: 100%; padding: 8px 10px; border-radius: 8px; border: 1px solid #e2e8f0; background: #fff; color: #1e293b; font-size: 0.8rem; }
+        .modal label { display: block; font-size: 1rem; color: #64748b; margin: 8px 0 3px; }
+        .modal select, .modal input, .modal textarea { width: 100%; padding: 8px 10px; border-radius: 8px; border: 1px solid #e2e8f0; background: #fff; color: #1e293b; font-size: 1rem; }
         .modal textarea { resize: vertical; min-height: 50px; }
 
         .fuel-status-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; margin-top: 4px; }
-        .fs-btn { padding: 8px 2px; border-radius: 6px; border: 2px solid #e2e8f0; background: #fff; color: #64748b; cursor: pointer; text-align: center; font-size: 0.65rem; transition: all 0.15s; }
+        .fs-btn { padding: 8px 2px; border-radius: 6px; border: 2px solid #e2e8f0; background: #fff; color: #64748b; cursor: pointer; text-align: center; font-size: 1rem; transition: all 0.15s; }
         .fs-btn .fs-type { font-weight: 600; display: block; margin-bottom: 2px; }
         .fs-btn.s-available { border-color: #22c55e; color: #16a34a; background: #f0fdf4; }
         .fs-btn.s-low { border-color: #f59e0b; color: #a16207; background: #fffbeb; }
@@ -104,11 +104,11 @@
         .fs-btn.s-none { border-color: #e2e8f0; color: #94a3b8; background: #f8fafc; }
 
         .modal-actions { display: flex; gap: 8px; margin-top: 14px; }
-        .modal-actions button { flex: 1; padding: 10px; border-radius: 8px; border: none; font-size: 0.8rem; font-weight: 600; cursor: pointer; }
+        .modal-actions button { flex: 1; padding: 10px; border-radius: 8px; border: none; font-size: 1rem; font-weight: 600; cursor: pointer; }
         .btn-cancel { background: #f1f5f9; color: #64748b; }
         .btn-submit { background: #f59e0b; color: #fff; }
         .btn-submit:disabled { opacity: 0.5; }
-        .auth-error { color: #dc2626; font-size: 0.75rem; margin-top: 6px; display: none; }
+        .auth-error { color: #dc2626; font-size: 1rem; margin-top: 6px; display: none; }
     </style>
 </head>
 <body>
