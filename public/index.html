@@ -24,8 +24,11 @@
 
         /* Price Section */
         .price-section { background: #fff; border-bottom: 1px solid #e2e8f0; }
-        .price-header { display: flex; justify-content: space-between; align-items: center; padding: 10px 16px; cursor: pointer; }
-        .price-header span { font-size: 1rem; color: #475569; font-weight: 600; }
+        .price-header { display: flex; justify-content: space-between; align-items: center; padding: 10px 16px; cursor: pointer; gap: 8px; }
+        .price-header span { font-size: 1rem; color: #475569; font-weight: 600; flex: 1; }
+        .btn-toggle { padding: 8px 14px; border-radius: 8px; border: 2px solid #e74c3c; background: #fff; color: #e74c3c; font-size: 0.9rem; font-weight: 600; cursor: pointer; white-space: nowrap; }
+        .btn-toggle:hover { background: #fef2f2; }
+        .btn-toggle.open { background: #e74c3c; color: #fff; }
         .price-header .btn-refresh { padding: 5px 12px; border-radius: 6px; border: 1px solid #e2e8f0; background: #f8fafc; color: #b45309; font-size: 1rem; cursor: pointer; font-weight: 600; }
         .price-header .btn-refresh:hover { background: #fef3c7; }
         .price-header .btn-refresh:disabled { opacity: 0.5; cursor: not-allowed; }
@@ -130,9 +133,10 @@
     </header>
 
     <div class="price-section">
-        <div class="price-header" onclick="togglePriceTable()">
-            <span id="price-summary">⛽ เปรียบเทียบราคาตามแบรนด์ (กดเพื่อดู)</span>
-            <button class="btn-refresh" id="btn-refresh-price" onclick="event.stopPropagation(); refreshPrices()">อัพเดทราคาล่าสุด</button>
+        <div class="price-header">
+            <span id="price-summary">⛽ เปรียบเทียบราคาตามแบรนด์</span>
+            <button class="btn-toggle" id="btn-toggle-price" onclick="togglePriceTable()">📊 ดูราคา</button>
+            <button class="btn-refresh" id="btn-refresh-price" onclick="refreshPrices()">อัพเดทราคาล่าสุด</button>
         </div>
         <div class="price-table-wrap" id="price-table-wrap">
             <table class="price-table" id="price-table"></table>
@@ -404,7 +408,18 @@ function updatePriceByBrand() {
     localStorage.setItem('prevBrandPrices', JSON.stringify(newPrev));
 }
 
-function togglePriceTable() { document.getElementById('price-table-wrap').classList.toggle('open'); }
+function togglePriceTable() {
+    const wrap = document.getElementById('price-table-wrap');
+    const btn = document.getElementById('btn-toggle-price');
+    wrap.classList.toggle('open');
+    if (wrap.classList.contains('open')) {
+        btn.textContent = '✕ ซ่อนราคา';
+        btn.classList.add('open');
+    } else {
+        btn.textContent = '📊 ดูราคา';
+        btn.classList.remove('open');
+    }
+}
 
 async function refreshPrices() {
     const btn = document.getElementById('btn-refresh-price');
