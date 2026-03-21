@@ -178,8 +178,8 @@
     <div class="container" id="station-list"></div>
 
     <div id="fab-menu" style="position:fixed;bottom:20px;right:20px;display:none;flex-direction:column;gap:10px;z-index:50;">
-        <button class="fab" onclick="triggerFileUpload()" title="นำเข้าไฟล์ (Excel/CSV)" style="position:static;width:44px;height:44px;font-size:1rem;background:#8b5cf6;box-shadow:0 4px 16px rgba(139,92,246,0.3);">📄</button>
-        <button class="fab" onclick="openAddStationModal()" title="เพิ่มปั๊ม" style="position:static;width:44px;height:44px;font-size:1rem;background:#3b82f6;box-shadow:0 4px 16px rgba(59,130,246,0.3);">🏪</button>
+        <button class="fab" id="fab-import" onclick="triggerFileUpload()" title="นำเข้าไฟล์ (Excel/CSV)" style="position:static;width:44px;height:44px;font-size:1rem;background:#8b5cf6;box-shadow:0 4px 16px rgba(139,92,246,0.3);">📄</button>
+        <button class="fab" id="fab-add" onclick="openAddStationModal()" title="เพิ่มปั๊ม" style="position:static;width:44px;height:44px;font-size:1rem;background:#3b82f6;box-shadow:0 4px 16px rgba(59,130,246,0.3);">🏪</button>
         <button class="fab" onclick="openReportModal()" title="รายงาน" style="position:static;">+</button>
     </div>
     <input type="file" id="file-input" accept=".csv,.tsv,.txt,.xlsx,.xls" style="display:none" onchange="uploadFile(this)">
@@ -284,6 +284,7 @@ const STATUS_ICON = { available: '🟢', low: '🟡', out: '🔴', none: '⚫' }
 let allStations = [];
 let districts = [];
 let currentUser = null;
+let currentRole = null; // 'admin' or 'staff'
 let fuelStatusForm = {};
 
 // === Auth ===
@@ -292,18 +293,32 @@ async function initAuth() {
     if (session) setUser(session.user);
     sb.auth.onAuthStateChange((_, session) => setUser(session?.user || null));
 }
-function setUser(user) {
+async function setUser(user) {
     currentUser = user;
+    currentRole = null;
     const el = document.getElementById('auth-area');
     const fab = document.getElementById('fab-menu');
+
     if (user) {
-        el.innerHTML = `<span class="user-name">${user.email.split('@')[0]}</span>
+        // ดึง role จาก DB
+        const { data } = await sb.from('user_roles').select('role').eq('user_id', user.id).single();
+        currentRole = data?.role || 'staff';
+
+        const roleLabel = currentRole === 'admin' ? '(แอดมิน)' : '(พนักงาน)';
+        el.innerHTML = `<span class="user-name">${user.email.split('@')[0]} ${roleLabel}</span>
             <button class="btn-auth logout" onclick="sb.auth.signOut()">ออก</button>`;
         fab.style.display = 'flex';
+        updateFabByRole();
     } else {
         el.innerHTML = `<button class="btn-auth" onclick="openModal('auth-modal')">เข้าสู่ระบบ</button>`;
         fab.style.display = 'none';
     }
+}
+
+function updateFabByRole() {
+    const isAdmin = currentRole === 'admin';
+    document.getElementById('fab-import').style.display = isAdmin ? 'block' : 'none';
+    document.getElementById('fab-add').style.display = isAdmin ? 'block' : 'none';
 }
 async function doAuth(mode) {
     const email = document.getElementById('auth-email').value.trim();
@@ -382,7 +397,8 @@ function updatePriceByBrand() {
     if (!allBrands.length) return;
 
     const isLoggedIn = !!currentUser;
-    document.getElementById('price-save-bar').style.display = isLoggedIn ? 'block' : 'none';
+    const isAdmin = currentRole === 'admin';
+    document.getElementById('price-save-bar').style.display = isAdmin ? 'block' : 'none';
     document.getElementById('price-summary').textContent = `⛽ ราคาน้ำมันตามแบรนด์ ${allBrands.length} เจ้า (กดเพื่อดู/ซ่อน)`;
 
     const table = document.getElementById('price-table');
@@ -396,7 +412,7 @@ function updatePriceByBrand() {
             <td style="font-weight:600;">${brand}</td>
             ${FUEL_TYPES.map(ft => {
                 const price = getBrandPrice(brand, ft.key);
-                if (isLoggedIn) {
+                if (isAdmin) {
                     return `<td><input type="number" step="0.01" min="0" max="99"
                         data-brand="${brand}" data-fuel="${ft.key}"
                         value="${price || ''}" placeholder="-"
@@ -549,7 +565,7 @@ function renderStations(list) {
             <div class="sc-footer">
                 <a href="${mapUrl}" target="_blank" onclick="event.stopPropagation()" style="color:#3b82f6;text-decoration:none;">📍 แผนที่</a>
                 <span>${Object.keys(s.fuel).length > 0 ? 'อัปเดต ' + formatAge(Math.min(...Object.values(s.fuel).map(f => f.age))) + ' ที่แล้ว' : 'ยังไม่มีรายงาน'}</span>
-                ${currentUser ? `<a href="#" onclick="event.stopPropagation(); deleteStation(${s.id}, '${s.name.replace(/'/g, "\\'")}'); return false;" style="color:#dc2626;text-decoration:none;font-size:0.7rem;">🗑 ลบ</a>` : ''}
+                ${currentRole === 'admin' ? `<a href="#" onclick="event.stopPropagation(); deleteStation(${s.id}, '${s.name.replace(/'/g, "\\'")}'); return false;" style="color:#dc2626;text-decoration:none;font-size:0.7rem;">🗑 ลบ</a>` : ''}
             </div>
         </div>`;
     }).join('');
