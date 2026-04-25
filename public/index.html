@@ -127,10 +127,10 @@
 <body>
     <header>
         <div class="header-left">
-            <img class="header-logo" src="/logo.jpg" alt="สำนักงานพลังงานจังหวัดเชียงราย">
+            <img class="header-logo" src="/logo.jpg" alt="สำนักงานพลังงานจังหวัดมหาสารคาม">
             <div class="header-text">
-                <h1>สถานะน้ำมันคงเหลือในจังหวัดเชียงราย</h1>
-                <div class="subtitle">สำนักงานพลังงานจังหวัดเชียงราย กระทรวงพลังงาน</div>
+                <h1>สถานะน้ำมันคงเหลือในจังหวัดมหาสารคาม</h1>
+                <div class="subtitle">สำนักงานพลังงานจังหวัดมหาสารคาม กระทรวงพลังงาน</div>
                 <div class="update-info" id="header-summary">ข้อมูลสำหรับประชาชน อัปเดตจากผู้ประกอบการสถานีบริการน้ำมัน</div>
             </div>
         </div>
@@ -552,7 +552,7 @@ function renderStations(list) {
             queueStr = `<div class="sc-queue ${qClass}">🚗 คิว ~${s.queue} คัน (~${Math.ceil(s.queue * 3)} นาที)</div>`;
         }
         const noteStr = s.note ? `<div class="sc-note">"${s.note}"</div>` : '';
-        const mapUrl = s.lat ? `https://www.google.com/maps?q=${s.lat},${s.lng}` : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(s.name + ' ' + s.districtName + ' เชียงราย')}`;
+        const mapUrl = s.lat ? `https://www.google.com/maps?q=${s.lat},${s.lng}` : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(s.name + ' ' + s.districtName + ' มหาสารคาม')}`;
 
         return `
         <div class="station-card ${statusClass}" onclick="openReportForStation(${s.id})">
